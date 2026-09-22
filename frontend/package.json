@@ -1,0 +1,40 @@
+{
+  "name": "tram-flow-forecast",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint . --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mantine/core": "^8.3.2",
+    "@mantine/hooks": "^8.3.2",
+    "@tabler/icons-react": "^3.35.0",
+    "@tanstack/react-query": "^5.90.2",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.2",
+    "maplibre-gl": "^5.7.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-map-gl": "^8.0.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/geojson": "^7946.0.16",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^6.1.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.44.1",
+    "vite": "^7.1.7"
+  }
+}
+

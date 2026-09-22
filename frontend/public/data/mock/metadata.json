@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-09-23T00:00:00+03:00",
+  "seed": 42,
+  "model": "synthetic-gaussian-v1",
+  "horizonDescriptions": {
+    "day": "15 минут / 24 часа",
+    "month": "1 час / 30 дней",
+    "year": "1 день / 365 дней"
+  }
+}

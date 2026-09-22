@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-09-22T19:45:49.830808+00:00",
+  "source": "OpenStreetMap contributors via Overpass API",
+  "license": "ODbL 1.0",
+  "routeCount": 8,
+  "segmentCount": 794,
+  "stopCount": 636,
+  "relationIds": [
+    540033,
+    540139,
+    1225388,
+    1244690,
+    1284062,
+    1343391,
+    1690015,
+    1690016
+  ]
+}
