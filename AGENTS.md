@@ -1,11 +1,7 @@
+# AGENTS.md
+
 This is a repository for an ML-oriented hackathon.
 
-Task description is in `task.md` (in Russian).
+Task description is in `task.md` (in Russian). Do not edit.
 
-Services:
-* Frontend: `frontend/`
-* Backend: not implemented yet
-* ML service: not implemented yet
-
-Data is in `data/`.
-
+Our project description is in `README.md` (in Russian). For now, we keep it is developer-facing. Update as prject evolves.

@@ -3,7 +3,7 @@ dist/
 .vite/
 tmp/
 untracked/
-data/
+prompt.txt
 *.log
 __pycache__/
 *.pyc
