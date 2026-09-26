@@ -51,7 +51,7 @@ cd ml_experiments
 $env:UV_CACHE_DIR = (Join-Path (Resolve-Path ..) 'untracked/uv-cache')
 uv sync
 cd ..
-python tools/calendar/fetch_isdayoff.py (2004..2027) --output-dir untracked/calendar --output-dir backend/calendar
+python tools/calendar/fetch_isdayoff.py 2025 2026 --output-dir untracked/calendar --output-dir backend/calendar
 cd ml_experiments
 uv run python prepare.py --input ../untracked/data/dataset/train.csv --input ../untracked/data/dataset/test.csv --output ../untracked/data/hourly_2025_jan_oct.csv --start 2025-01-01 --end 2025-10-31
 uv run python evaluate.py --data ../untracked/data/hourly_2025_jan_oct.csv --output ../untracked/data/experiments/initial

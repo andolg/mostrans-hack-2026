@@ -7,11 +7,10 @@
 отвечает 2027 год. Если файла нет, приложение использует обычные выходные и
 фиксированные государственные праздники без переносов и сокращённых дней.
 
-Из корня репозитория, пример обновления всех доступных лет для backend и обучения
-в PowerShell:
+Из корня репозитория, пример обновления нужных лет для backend и обучения:
 
-```powershell
-python tools/calendar/fetch_isdayoff.py (2004..2027) --output-dir untracked/calendar --output-dir backend/calendar
+```bash
+python tools/calendar/fetch_isdayoff.py 2025 2026 --output-dir untracked/calendar --output-dir backend/calendar
 ```
 
 `backend/calendar/*.csv` включаются в Docker-образ. При обновлении календаря
