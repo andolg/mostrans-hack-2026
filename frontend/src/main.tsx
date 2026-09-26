@@ -14,11 +14,11 @@ const queryClient = new QueryClient({
 });
 
 const theme = createTheme({
-  primaryColor: 'cyan',
-  fontFamily: 'Inter, Manrope, system-ui, sans-serif',
-  defaultRadius: 'md',
+  primaryColor: 'blue',
+  fontFamily: 'Arial, Helvetica, sans-serif',
+  defaultRadius: 'xs',
   colors: {
-    dark: ['#d7dee8', '#aeb9c8', '#8592a5', '#5e6c80', '#3f4d61', '#29384b', '#1b293a', '#111d2b', '#0b1521', '#07101a'],
+    dark: ['#eeeeee', '#d4d4d4', '#b5b5b5', '#9d9d9d', '#747474', '#4b4b4b', '#3c3c3c', '#313131', '#252526', '#1f1f1f'],
   },
 });
 
@@ -31,4 +31,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </MantineProvider>
   </React.StrictMode>,
 );
-
