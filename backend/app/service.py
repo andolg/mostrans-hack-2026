@@ -87,7 +87,7 @@ class BoardingsService:
             for route in routes:
                 if (route, instant.date(), instant.hour) not in existing:
                     missing.append({"route": route, "date": instant.date().isoformat(), "hour": instant.hour})
-                if len(missing) == 7200:
+                if len(missing) == self.settings.forecast_batch_size:
                     self._predict_and_save(connection, missing)
                     missing.clear()
             instant += timedelta(hours=1)

@@ -1,4 +1,5 @@
 import csv
+import json
 from dataclasses import replace
 from datetime import date
 
@@ -66,6 +67,25 @@ def test_startup_seeds_history_and_precomputes_once(tmp_path):
     with TestClient(app):
         pass
     assert len(predictor.calls) == 1
+
+
+def test_forecast_batch_size_from_settings_controls_precomputation(tmp_path, monkeypatch):
+    settings = make_settings(tmp_path)
+    config = tmp_path / "settings.json"
+    config.write_text(json.dumps({
+        "history_csv": str(settings.history_csv),
+        "models_dir": str(settings.models_dir),
+        "historical_end": settings.historical_end.isoformat(),
+        "precompute_days": settings.precompute_days,
+        "forecast_batch_size": 10,
+    }), encoding="utf-8")
+    monkeypatch.setenv("DATABASE_URL", settings.database_url)
+    predictor = FakePredictor()
+
+    with TestClient(create_app(Settings.from_file(config), predictor_factory=lambda: predictor)):
+        pass
+
+    assert [len(call) for call in predictor.calls] == [10, 10, 10, 10, 8]
 
 
 def test_interval_response_keeps_actuals_and_forecasts_distinct(tmp_path):
