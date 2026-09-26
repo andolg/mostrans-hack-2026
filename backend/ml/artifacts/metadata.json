@@ -29,6 +29,7 @@
     "day_of_year",
     "is_weekend",
     "is_holiday",
+    "is_short_day",
     "summer",
     "school_start"
   ]

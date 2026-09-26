@@ -1,21 +1,26 @@
 """Calendar-only forecasts for horizons where no future validations are known."""
 
+import os
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from backend.app.holidays import HolidayCalendar
 
-HOLIDAYS = {
-    "2025-01-01", "2025-01-02", "2025-01-03", "2025-01-04",
-    "2025-01-05", "2025-01-06", "2025-01-07", "2025-01-08",
-    "2025-02-23", "2025-03-08", "2025-05-01", "2025-05-09",
-    "2025-06-12", "2025-11-04", "2025-12-31",
-}
+CALENDAR = HolidayCalendar.from_dir(Path(os.environ.get(
+    "CALENDAR_DIR", Path(__file__).resolve().parents[1] / "untracked/calendar",
+)))
 
 
-def calendar(frame: pd.DataFrame, is_holiday=None) -> pd.DataFrame:
+def calendar(frame: pd.DataFrame, calendar_data=None) -> pd.DataFrame:
     date = pd.to_datetime(frame["date"])
     day = date.dt.dayofyear
+    days = date.dt.strftime("%Y-%m-%d")
+    codes = days.map((calendar_data or CALENDAR).code)
     result = pd.DataFrame(index=frame.index)
     result["route"] = frame["route"].to_numpy()
     result["hour"] = frame["hour"].to_numpy()
@@ -24,11 +29,9 @@ def calendar(frame: pd.DataFrame, is_holiday=None) -> pd.DataFrame:
     result["day"] = date.dt.day.to_numpy()
     result["week"] = date.dt.isocalendar().week.to_numpy(dtype="int64")
     result["day_of_year"] = day.to_numpy()
-    result["is_weekend"] = (date.dt.dayofweek >= 5).astype(int).to_numpy()
-    days = date.dt.strftime("%Y-%m-%d")
-    result["is_holiday"] = (
-        days.isin(HOLIDAYS) if is_holiday is None else days.map(is_holiday)
-    ).astype(int).to_numpy()
+    result["is_weekend"] = codes.isin([1, 8]).astype(int).to_numpy()
+    result["is_holiday"] = codes.eq(8).astype(int).to_numpy()
+    result["is_short_day"] = codes.eq(2).astype(int).to_numpy()
     result["summer"] = date.dt.month.isin([6, 7, 8]).astype(int).to_numpy()
     result["school_start"] = date.dt.month.eq(9).astype(int).to_numpy()
     return result

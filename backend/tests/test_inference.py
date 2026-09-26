@@ -8,7 +8,9 @@ from backend.ml.inference import SavedPredictor
 
 class FakeBooster:
     def predict(self, features, num_threads):
-        return features["hour"].to_numpy(dtype=float) + 10 * features["is_holiday"].to_numpy()
+        return (features["hour"].to_numpy(dtype=float)
+                + 10 * features["is_holiday"].to_numpy()
+                + 5 * features["is_short_day"].to_numpy())
 
 
 class FakeModel:
@@ -27,10 +29,14 @@ def test_saved_predictor_uses_local_features_and_artifacts(tmp_path):
         tmp_path / "median_12w.csv", index=False,
     )
 
-    predictor = SavedPredictor(tmp_path, is_holiday=lambda day: day == "2026-01-09")
+    from backend.app.holidays import HolidayCalendar
+
+    holidays = HolidayCalendar.from_dir(tmp_path)
+    holidays.codes.update({"2026-01-09": 8, "2026-01-10": 2})
+    predictor = SavedPredictor(tmp_path, calendar_data=holidays)
     frame = pd.DataFrame({
         "route": [1, 1, 5],
         "date": ["2026-01-09", "2026-01-10", "2026-01-09"],
         "hour": [8, 8, 8],
     })
-    assert predictor.predict_frame(frame).prediction.tolist() == [15, 6, 0]
+    assert predictor.predict_frame(frame).prediction.tolist() == [15, 10, 0]

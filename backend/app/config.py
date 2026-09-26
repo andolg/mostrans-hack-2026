@@ -12,7 +12,7 @@ class Settings:
     historical_end: date
     precompute_days: int
     database_url: str
-    holidays_json: Path | None = None
+    calendar_dir: Path | None = None
     forecast_batch_size: int = 7200
 
     @classmethod
@@ -32,6 +32,6 @@ class Settings:
             historical_end=date.fromisoformat(data["historical_end"]),
             precompute_days=int(data.get("precompute_days", 365)),
             database_url=os.environ["DATABASE_URL"],
-            holidays_json=resolve(data["holidays_json"]) if "holidays_json" in data else None,
+            calendar_dir=resolve(data["calendar_dir"]) if "calendar_dir" in data else None,
             forecast_batch_size=forecast_batch_size,
         )
