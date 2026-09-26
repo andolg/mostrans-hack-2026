@@ -4,4 +4,6 @@ prompt.txt
 *.log
 __pycache__/
 *.pyc
+.venv/
+.pytest_cache/
 .DS_Store

@@ -1,0 +1,7 @@
+{
+  "history_csv": "/data/hourly_2025_jan_oct.csv",
+  "models_dir": "/data/experiments/final",
+  "historical_end": "2025-10-31",
+  "precompute_days": 365,
+  "holidays_json": "/app/backend/holidays.json"
+}

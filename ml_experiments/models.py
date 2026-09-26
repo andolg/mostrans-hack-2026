@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
-from catboost import CatBoostRegressor
 
 
 HOLIDAYS = {
@@ -14,7 +13,7 @@ HOLIDAYS = {
 }
 
 
-def calendar(frame: pd.DataFrame) -> pd.DataFrame:
+def calendar(frame: pd.DataFrame, is_holiday=None) -> pd.DataFrame:
     date = pd.to_datetime(frame["date"])
     day = date.dt.dayofyear
     result = pd.DataFrame(index=frame.index)
@@ -26,7 +25,10 @@ def calendar(frame: pd.DataFrame) -> pd.DataFrame:
     result["week"] = date.dt.isocalendar().week.to_numpy(dtype="int64")
     result["day_of_year"] = day.to_numpy()
     result["is_weekend"] = (date.dt.dayofweek >= 5).astype(int).to_numpy()
-    result["is_holiday"] = date.dt.strftime("%Y-%m-%d").isin(HOLIDAYS).astype(int).to_numpy()
+    days = date.dt.strftime("%Y-%m-%d")
+    result["is_holiday"] = (
+        days.isin(HOLIDAYS) if is_holiday is None else days.map(is_holiday)
+    ).astype(int).to_numpy()
     result["summer"] = date.dt.month.isin([6, 7, 8]).astype(int).to_numpy()
     result["school_start"] = date.dt.month.eq(9).astype(int).to_numpy()
     return result
@@ -72,7 +74,9 @@ def lightgbm(train: pd.DataFrame, future: pd.DataFrame, objective: str = "regres
 
 
 def catboost(train: pd.DataFrame, future: pd.DataFrame,
-             loss: str = "MAE") -> tuple[np.ndarray, CatBoostRegressor]:
+             loss: str = "MAE"):
+    from catboost import CatBoostRegressor
+
     features = calendar(train)
     future_features = calendar(future)
     cats = ["route", "hour", "weekday", "month", "is_weekend", "is_holiday", "summer"]

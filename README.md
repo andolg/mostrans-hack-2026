@@ -4,20 +4,60 @@
 
 Документация: [данные](docs/data/README.md) · [ML-пайплайн](docs/ml/README.md) · [архитектура backend](docs/backend/architecture.md) · [архитектура фронтенда](docs/frontend/architecture.md) · [результаты ML-экспериментов](ml_experiments/RESULTS.md).
 
-ML-инференс, локальный тест без HTTP (2 логических CPU, 2 потока): 400 RPS, p95 1,42 мс, RSS после предрасчёта 153 МБ. Нагрузочный тест полного сервиса пока не проводился; подробности — в [документации ML](docs/ml/README.md).
+ML-инференс без HTTP: 400 RPS, p95 1,42 мс на 2 логических CPU. Замеры полного API приведены ниже; подробности ML — в [документации](docs/ml/README.md).
 
 ## Структура проекта
 
 Services:
 * Frontend: `frontend/`
-* Backend: not implemented yet
-* ML service: not implemented yet
+* Backend: `backend/` (FastAPI, SQLAlchemy, сохранённая ML-модель)
+* Database: PostgreSQL
 
 Data and the descriptions are in `untracked/data/`.
 
 Tools in `tools/`:
 * `mock-data/` - generates mock predicitons to be displayed in the frontend demo
 * `osm/` - loads OSM data for tram lines.
+
+## Backend
+
+Backend отдаёт фактические посадки до **2025-10-31** и прогноз начиная с
+**2025-11-01**. При запуске он загружает подготовленную почасовую историю и
+рассчитывает прогноз на 365 дней для всех маршрутов. Прогнозы за пределами
+предрассчитанного периода создаются по запросу и сохраняются в PostgreSQL.
+Обучение модели при запуске не выполняется. Архитектура и ограничения описаны
+в [docs/backend/architecture.md](docs/backend/architecture.md).
+
+Нужны файлы `untracked/data/hourly_2025_jan_oct.csv` и
+`untracked/data/experiments/final/` из ML-пайплайна. Сырые CSV сервису не нужны.
+Параметры запуска находятся в `backend/settings.json`, календарные признаки —
+в `backend/holidays.json`, подключение к БД задаётся `DATABASE_URL`.
+
+```powershell
+docker compose up --build -d postgres backend
+```
+
+API доступен на <http://localhost:8000/docs>. Основные запросы:
+
+```http
+GET /api/boardings?from=2025-11-01T00:00&to=2025-12-01T00:00&route=17&group_by=day
+GET /api/metadata
+GET /health
+```
+
+`from` включительно, `to` исключительно; `route` необязателен,
+`group_by=hour|day|month`. Даты и часы задаются по календарю датасета без
+смещения часового пояса. Нулевые прогнозы тоже сохраняются в кэше.
+
+Для локальных проверок нужен Python 3.12:
+`python -m pip install -r backend/requirements.txt pytest httpx`, затем
+`python -m pytest -q backend/tests`. Нагрузочный тест:
+`python backend/benchmark_http.py --requests 1200 --rps 400 --workers 32`.
+На локальной машине с Docker backend запущен в **2 рабочих процессах** и
+ограничен **2 vCPU и 2 ГБ RAM**; PostgreSQL работает отдельно. В двух прогонах
+по 1 200 кэшированных часовых запросов при заданных 400 RPS получено
+**373–392 RPS, p95 112–239 мс**; память backend под нагрузкой — около
+**318 МиБ**. Замеры не включают приём потоковых данных и зависят от машины.
 
 ## Фронтенд
 
@@ -28,7 +68,7 @@ Tools in `tools/`:
 Через Docker:
 
 ```powershell
-docker compose up --build
+docker compose up --build frontend
 ```
 
 Приложение откроется на <http://localhost:8080>. Контейнеру не требуется backend или доступ к Overpass; все прикладные данные уже находятся в `frontend/public/data`.

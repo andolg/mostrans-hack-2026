@@ -9,19 +9,23 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from models import HOLIDAYS, calendar
+if __package__:
+    from .models import HOLIDAYS, calendar
+else:
+    from models import HOLIDAYS, calendar
 
 
 class SavedPredictor:
     """Keep models in memory for repeated route/hour requests."""
 
-    def __init__(self, models_dir: Path):
+    def __init__(self, models_dir: Path, is_holiday=None):
         metadata = json.loads((models_dir / "metadata.json").read_text())
         self.routes = metadata["routes"]
         self.weights = metadata["ensemble"]
         self.forecast_start = metadata["forecast_start"]
         self.forecast_end = metadata["forecast_end"]
         self.precomputed = {}
+        self.is_holiday = is_holiday or (lambda day: day in HOLIDAYS)
         self.deep = joblib.load(models_dir / "lgb_l1_deep.joblib")
         self.poisson = joblib.load(models_dir / "lgb_poisson.joblib")
         seasonal = pd.read_csv(models_dir / "median_12w.csv")
@@ -41,7 +45,7 @@ class SavedPredictor:
         features = np.array([[
             route, hour, weekday, current.month, current.day,
             current.isocalendar().week, current.timetuple().tm_yday,
-            int(weekday >= 5), int(day in HOLIDAYS),
+            int(weekday >= 5), int(self.is_holiday(day)),
             int(current.month in (6, 7, 8)), int(current.month == 9),
         ]], dtype=np.int64)
         deep = max(0.0, self.deep.booster_.predict(features, num_threads=1)[0])
@@ -69,7 +73,7 @@ class SavedPredictor:
         return result
 
     def predict_frame(self, future: pd.DataFrame) -> pd.DataFrame:
-        features = calendar(future)
+        features = calendar(future, is_holiday=self.is_holiday)
         deep = np.maximum(0, self.deep.booster_.predict(features, num_threads=1))
         poisson = np.maximum(0, self.poisson.booster_.predict(features, num_threads=1))
         weekday = pd.to_datetime(future.date).dt.dayofweek
