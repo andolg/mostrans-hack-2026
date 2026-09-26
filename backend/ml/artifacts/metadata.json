@@ -1,0 +1,35 @@
+{
+  "train_end": "2025-10-31",
+  "forecast_start": "2025-11-01",
+  "forecast_end": "2025-12-31",
+  "routes": [
+    1,
+    5,
+    7,
+    11,
+    12,
+    17,
+    25,
+    26,
+    28,
+    50
+  ],
+  "ensemble": {
+    "lgb_l1_deep": 0.7,
+    "lgb_poisson": 0.1,
+    "median_12w": 0.2
+  },
+  "features": [
+    "route",
+    "hour",
+    "weekday",
+    "month",
+    "day",
+    "week",
+    "day_of_year",
+    "is_weekend",
+    "is_holiday",
+    "summer",
+    "school_start"
+  ]
+}

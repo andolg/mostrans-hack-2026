@@ -2,7 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from ml_experiments.predict_saved import SavedPredictor
+from backend.ml.inference import SavedPredictor
 
 from .config import Settings
 from .holidays import HolidayCalendar

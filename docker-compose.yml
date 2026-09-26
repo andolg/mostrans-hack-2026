@@ -22,7 +22,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://mostrans:mostrans@postgres:5432/mostrans
     volumes:
-      - ./untracked/data:/data:ro
+      - ./untracked/data/hourly_2025_jan_oct.csv:/data/hourly_2025_jan_oct.csv:ro
     ports:
       - "8000:8000"
     depends_on:

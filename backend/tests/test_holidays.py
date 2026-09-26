@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from backend.app.holidays import HolidayCalendar
-from ml_experiments.models import calendar
+from backend.ml.features import calendar
 
 
 def test_calendar_covers_future_year_and_preserves_model_feature(tmp_path):
