@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -19,7 +20,7 @@ DEFAULT_BBOX = "55.48,37.29,55.98,37.96"
 def build_query(bbox: str, route_refs: list[str]) -> str:
     ref_filter = ""
     if route_refs:
-        escaped = "|".join(ref.replace("\\", "\\\\").replace('"', '\\"') for ref in route_refs)
+        escaped = "|".join(re.escape(ref) for ref in route_refs)
         ref_filter = f'[ref~"^({escaped})$"]'
     return f"""[out:json][timeout:180];
 relation[type=route][route=tram]{ref_filter}({bbox});
@@ -33,11 +34,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--bbox", default=DEFAULT_BBOX, help="south,west,north,east")
-    parser.add_argument("--route-ref", action="append", default=[], help="Repeat to limit download, e.g. --route-ref t2")
+    parser.add_argument("--route-refs", nargs="+", default=[], metavar="REF", help="Route numbers or refs separated by spaces")
+    parser.add_argument("--route-ref", action="append", default=[], help="Single route ref (can be repeated)")
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     args = parser.parse_args()
 
-    query = build_query(args.bbox, args.route_ref)
+    query = build_query(args.bbox, args.route_refs + args.route_ref)
     request = urllib.request.Request(
         args.endpoint,
         data=urllib.parse.urlencode({"data": query}).encode("utf-8"),
@@ -60,4 +62,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
