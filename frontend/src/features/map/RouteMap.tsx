@@ -5,7 +5,7 @@ import { baseMapStyle, mapConfig } from '../../config/map';
 
 function routeColor(value: number, min: number, max: number) {
   const amount = max === min ? 0 : (value - min) / (max - min);
-  const low = [103, 173, 120], middle = [200, 173, 88], high = [199, 108, 103];
+  const low = [139, 243, 166], middle = [255, 217, 112], high = [255, 149, 140];
   const from = amount < 0.5 ? low : middle;
   const to = amount < 0.5 ? middle : high;
   const fraction = (amount < 0.5 ? amount : amount - 0.5) * 2;
@@ -57,7 +57,8 @@ export function RouteMap({ routes, stops, supportedRoutes, points, snapshot, sel
       <NavigationControl position="top-right" showCompass={false} />
       <Source id="routes" type="geojson" data={coloredRoutes}>
         <Layer id="routes-base" type="line" paint={{ 'line-color': '#171717', 'line-width': 7, 'line-opacity': 0.85 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
-        <Layer id="routes-color" type="line" paint={{ 'line-color': ['get', 'color'], 'line-width': ['case', ['get', 'selected'], 5, 3], 'line-opacity': ['case', ['get', 'selected'], 1, 0.75] }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+        <Layer id="routes-color" type="line" filter={['==', ['get', 'selected'], false]} paint={{ 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.85 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+        <Layer id="route-selected" type="line" filter={['==', ['get', 'selected'], true]} paint={{ 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 1 }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
         <Layer id="routes-hit" type="line" paint={{ 'line-color': '#ffffff', 'line-width': 16, 'line-opacity': 0 }} />
       </Source>
       <Source id="stops" type="geojson" data={stops}>

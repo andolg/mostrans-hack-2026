@@ -36,7 +36,7 @@ export function App() {
   });
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
-  const [bucket, setBucket] = useState<Bucket>('day');
+  const [bucket, setBucket] = useState<Bucket>('hour');
   const [route, setRoute] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
 

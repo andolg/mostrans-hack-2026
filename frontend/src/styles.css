@@ -36,7 +36,7 @@ button, input, select { font: inherit; }
 .map-legend div { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .map-legend i, .key i { display: inline-block; width: 14px; height: 8px; margin-left: 8px; }
 .map-legend i:first-child, .key i:first-child { margin-left: 0; }
-.legend-low { background: #67ad78; }.legend-high { background: #c76c67; }
+.legend-low { background: #8bf3a6; }.legend-high { background: #ff958c; }
 .loading-chip { top: 62px; left: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
 .error-chip { top: 62px; left: 16px; color: #efb7b7; padding: 8px 10px; }
 .route-popup .maplibregl-popup-content { background: #252526; color: #d4d4d4; border: 1px solid #454545; border-radius: 3px; padding: 9px 12px; line-height: 1.5; }
