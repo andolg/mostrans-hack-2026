@@ -14,7 +14,7 @@ class ModelPredictor:
         metadata = json.loads((settings.models_dir / "metadata.json").read_text(encoding="utf-8"))
         if metadata["train_end"] != settings.historical_end.isoformat():
             raise ValueError("Model training cutoff differs from historical_end")
-        holidays = HolidayCalendar.from_dir(calendar_dir)
+        holidays = HolidayCalendar(calendar_dir)
         self.model = SavedPredictor(settings.models_dir, calendar_data=holidays)
         self.routes = self.model.routes
 

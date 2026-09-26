@@ -22,10 +22,6 @@ class HolidayCalendar:
                 raise ValueError(f"Incomplete calendar: {path}")
             self.codes.update((row["date"], int(row["day_type"])) for row in rows)
 
-    @classmethod
-    def from_dir(cls, directory: Path) -> "HolidayCalendar":
-        return cls(directory)
-
     def code(self, day: str) -> int:
         if day in self.codes:
             return self.codes[day]

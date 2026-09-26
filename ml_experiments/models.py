@@ -11,7 +11,7 @@ from lightgbm import LGBMRegressor
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from backend.app.holidays import HolidayCalendar
 
-CALENDAR = HolidayCalendar.from_dir(Path(os.environ.get(
+CALENDAR = HolidayCalendar(Path(os.environ.get(
     "CALENDAR_DIR", Path(__file__).resolve().parents[1] / "untracked/calendar",
 )))
 

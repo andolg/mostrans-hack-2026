@@ -31,7 +31,7 @@ def test_saved_predictor_uses_local_features_and_artifacts(tmp_path):
 
     from backend.app.holidays import HolidayCalendar
 
-    holidays = HolidayCalendar.from_dir(tmp_path)
+    holidays = HolidayCalendar(tmp_path)
     holidays.codes.update({"2026-01-09": 8, "2026-01-10": 2})
     predictor = SavedPredictor(tmp_path, calendar_data=holidays)
     frame = pd.DataFrame({
