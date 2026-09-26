@@ -66,6 +66,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--include-platform-ways", action="store_true", help="Also include platform ways as stop points")
     args = parser.parse_args()
 
     payload = json.loads(args.input.read_text(encoding="utf-8"))
@@ -85,27 +86,34 @@ def main() -> int:
             member_type = member.get("type", "")
             ref = int(member.get("ref", 0))
             role = member.get("role", "").lower()
-            if member_type == "way" and ref in ways and role not in {"platform", "stop", "stop_entry_only", "stop_exit_only"}:
+            member_tags = (nodes.get(ref, {}) if member_type == "node" else ways.get(ref, {})).get("tags", {})
+            is_platform_way = member_type == "way" and (
+                role.startswith("platform")
+                or member_tags.get("public_transport") == "platform"
+                or member_tags.get("railway") == "platform"
+            )
+            is_stop_position = member_type == "node" and member_tags.get("public_transport") == "stop_position"
+            is_stop_way = member_type == "way" and (
+                role.startswith("stop")
+                or member_tags.get("public_transport") == "stop_position"
+                or member_tags.get("railway") == "tram_stop"
+            )
+            if member_type == "way" and ref in ways and not is_platform_way and not is_stop_way:
                 feature = line_feature(relation, ways[ref], sequence, nodes)
                 if feature:
                     route_features.append(feature)
                     sequence += 1
-            member_tags = (nodes.get(ref) if member_type == "node" else ways.get(ref, {})).get("tags", {})
-            is_stop = (
-                "stop" in role
-                or "platform" in role
-                or member_tags.get("railway") in {"tram_stop", "platform"}
-                or member_tags.get("public_transport") in {"stop_position", "platform"}
-            )
-            if is_stop:
+            if is_stop_position or (args.include_platform_ways and is_platform_way):
                 key = (member_type, ref)
                 stop_routes[key].add(route_id)
                 stop_names[key] = member_tags.get("name") or member_tags.get("official_name") or "Без названия"
 
-    # Retain tagged tram stops even when a relation omits explicit platform membership.
+    # Retain tagged tram stop positions even when a relation omits them.
     for node_id, node in nodes.items():
         tags = node.get("tags", {})
-        if tags.get("railway") == "tram_stop" or (tags.get("public_transport") in {"stop_position", "platform"} and tags.get("tram") == "yes"):
+        if tags.get("public_transport") == "stop_position" and (
+            tags.get("tram") == "yes" or tags.get("railway") == "tram_stop"
+        ):
             key = ("node", node_id)
             stop_names.setdefault(key, tags.get("name") or "Без названия")
 
@@ -145,4 +153,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
