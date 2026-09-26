@@ -50,7 +50,6 @@ cd ml_experiments
 $env:UV_CACHE_DIR = (Join-Path (Resolve-Path ..) 'untracked/uv-cache')
 uv sync
 uv run python prepare.py --input ../untracked/data/dataset/train.csv --input ../untracked/data/dataset/test.csv --output ../untracked/data/hourly_2025_jan_oct.csv --start 2025-01-01 --end 2025-10-31
-uv run python fetch_weather.py --start 2021-01-01 --end 2025-12-31 --output ../untracked/data/weather/moscow_hourly.csv
 uv run python evaluate.py --data ../untracked/data/hourly_2025_jan_oct.csv --output ../untracked/data/experiments/initial
 uv run python evaluate_more.py --data ../untracked/data/hourly_2025_jan_oct.csv --output ../untracked/data/experiments/more
 uv run python forecast.py --data ../untracked/data/hourly_2025_jan_oct.csv --output ../untracked/data/submission.csv --models-dir ../untracked/data/experiments/final
@@ -69,6 +68,9 @@ uv run python predict_saved.py --models-dir ../untracked/data/experiments/final 
 неизвестен. Модель опирается на календарь и прошлые валидации; изменения
 маршрутов, погода и события могут ухудшить прогноз. Цель измеряет посадки,
 а не фактическую заполненность салона.
+
+Отдельный эксперимент с исторической погодой, честной двухмесячной оценкой и
+весами внешних источников: [results/weather_and_source_weights.md](results/weather_and_source_weights.md).
 
 ## Производительность инференса
 

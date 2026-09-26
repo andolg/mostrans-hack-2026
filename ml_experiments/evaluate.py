@@ -22,8 +22,8 @@ CLIMATE_BEFORE = "2025-01-01"
 
 def add_weather_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--weather", type=Path, help="fetch_weather.py output; omit for calendar only")
-    parser.add_argument("--weather-mode", choices=["actual", "climate"], default="actual",
-                        help="weather for test windows: observed or climatology")
+    parser.add_argument("--weather-mode", choices=["actual", "climate"], default="climate",
+                        help="weather for test windows: climatology or observed (oracle)")
     parser.add_argument("--weather-columns", default=",".join(WEATHER_FEATURES),
                         help="comma-separated subset of weather features to use")
 
@@ -35,7 +35,8 @@ def fold_splitter(data: pd.DataFrame, args):
     drop = sorted(set(WEATHER_FEATURES) - set(args.weather_columns.split(",")))
 
     def split(cutoff: str, first: str, last: str):
-        train, test = split(cutoff, first, last)
+        train = data.loc[data.date <= cutoff].reset_index(drop=True)
+        test = data.loc[data.date.between(first, last)].reset_index(drop=True)
         if weather is None:
             return train, test
         train = add_weather(train, weather)
