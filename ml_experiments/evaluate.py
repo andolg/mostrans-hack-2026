@@ -17,7 +17,7 @@ FOLDS = [
 ]
 
 
-def evaluate(data: pd.DataFrame, output: Path) -> list[dict]:
+def evaluate(data: pd.DataFrame, output: Path, selected_only: bool = False) -> list[dict]:
     scores = []
     predictions = []
     methods = {
@@ -29,6 +29,8 @@ def evaluate(data: pd.DataFrame, output: Path) -> list[dict]:
         "lgb_poisson": lambda tr, te: lightgbm(tr, te, "poisson")[0],
         "selected_ensemble": lambda tr, te: selected_ensemble(tr, te)[0],
     }
+    if selected_only:
+        methods = {"selected_ensemble": methods["selected_ensemble"]}
     for cutoff, first, last in FOLDS:
         train = data.loc[data.date <= cutoff].reset_index(drop=True)
         test = data.loc[data.date.between(first, last)].reset_index(drop=True)
@@ -52,9 +54,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--selected-only", action="store_true")
     args = parser.parse_args()
     data = pd.read_csv(args.data, sep=";", dtype={"date": str})
-    evaluate(data, args.output)
+    evaluate(data, args.output, args.selected_only)
 
 
 if __name__ == "__main__":

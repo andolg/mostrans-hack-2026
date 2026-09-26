@@ -4,5 +4,5 @@
   "historical_end": "2025-10-31",
   "precompute_days": 365,
   "forecast_batch_size": 7200,
-  "holidays_json": "/app/backend/holidays.json"
+  "calendar_dir": "/app/backend/calendar"
 }
