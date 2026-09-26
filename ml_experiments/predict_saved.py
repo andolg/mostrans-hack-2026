@@ -10,15 +10,15 @@ import numpy as np
 import pandas as pd
 
 if __package__:
-    from .models import HOLIDAYS, calendar
+    from .models import HOLIDAYS, add_weather, calendar, load_weather
 else:
-    from models import HOLIDAYS, calendar
+    from models import HOLIDAYS, add_weather, calendar, load_weather
 
 
 class SavedPredictor:
     """Keep models in memory for repeated route/hour requests."""
 
-    def __init__(self, models_dir: Path, is_holiday=None):
+    def __init__(self, models_dir: Path, is_holiday=None, weather_path: Path | None = None):
         metadata = json.loads((models_dir / "metadata.json").read_text())
         self.routes = metadata["routes"]
         self.weights = metadata["ensemble"]
@@ -28,6 +28,11 @@ class SavedPredictor:
         self.is_holiday = is_holiday or (lambda day: day in HOLIDAYS)
         self.deep = joblib.load(models_dir / "lgb_l1_deep.joblib")
         self.poisson = joblib.load(models_dir / "lgb_poisson.joblib")
+        # Weather models use observed weather when given, otherwise the saved climatology.
+        self.climate = None
+        if metadata.get("weather"):
+            self.climate = pd.read_csv(models_dir / metadata["weather"]["climate"])
+            self.weather = load_weather(weather_path) if weather_path else None
         seasonal = pd.read_csv(models_dir / "median_12w.csv")
         self.seasonal = {
             (int(row.route), int(row.weekday), int(row.hour)): float(row.value)
@@ -40,6 +45,9 @@ class SavedPredictor:
             return self.precomputed[key]
         if route == 5:
             return 0
+        if self.climate is not None:
+            frame = pd.DataFrame({"route": [route], "date": [day], "hour": [hour]})
+            return int(self.predict_frame(frame).prediction.iloc[0])
         current = date.fromisoformat(day)
         weekday = current.weekday()
         features = np.array([[
@@ -73,7 +81,10 @@ class SavedPredictor:
         return result
 
     def predict_frame(self, future: pd.DataFrame) -> pd.DataFrame:
-        features = calendar(future, is_holiday=self.is_holiday)
+        frame = future
+        if self.climate is not None:
+            frame = add_weather(future, self.weather, self.climate)
+        features = calendar(frame, is_holiday=self.is_holiday)
         deep = np.maximum(0, self.deep.booster_.predict(features, num_threads=1))
         poisson = np.maximum(0, self.poisson.booster_.predict(features, num_threads=1))
         weekday = pd.to_datetime(future.date).dt.dayofweek
@@ -89,8 +100,9 @@ class SavedPredictor:
         return future.assign(prediction=np.maximum(0, np.rint(prediction)).astype(int))
 
 
-def predict(models_dir: Path, output: Path, start: str, end: str) -> pd.DataFrame:
-    predictor = SavedPredictor(models_dir)
+def predict(models_dir: Path, output: Path, start: str, end: str,
+            weather_path: Path | None = None) -> pd.DataFrame:
+    predictor = SavedPredictor(models_dir, weather_path=weather_path)
     index = pd.MultiIndex.from_product(
         [predictor.routes, pd.date_range(start, end).strftime("%Y-%m-%d"), range(24)],
         names=["route", "date", "hour"],
@@ -108,8 +120,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
+    parser.add_argument("--weather", type=Path, help="fetch_weather.py output for weather models")
     args = parser.parse_args()
-    result = predict(args.models_dir, args.output, args.start, args.end)
+    result = predict(args.models_dir, args.output, args.start, args.end, args.weather)
     print(f"{len(result):,} predictions -> {args.output}")
 
 

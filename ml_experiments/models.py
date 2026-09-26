@@ -1,4 +1,4 @@
-"""Calendar-only forecasts for horizons where no future validations are known."""
+"""Calendar (and optional weather) forecasts for horizons where no future validations are known."""
 
 import numpy as np
 import pandas as pd
@@ -31,6 +31,65 @@ def calendar(frame: pd.DataFrame, is_holiday=None) -> pd.DataFrame:
     ).astype(int).to_numpy()
     result["summer"] = date.dt.month.isin([6, 7, 8]).astype(int).to_numpy()
     result["school_start"] = date.dt.month.eq(9).astype(int).to_numpy()
+    for column in WEATHER_FEATURES:
+        if column in frame:
+            result[column] = frame[column].to_numpy(dtype=float)
+    return result
+
+
+WEATHER_RAW = [
+    "temperature_2m", "apparent_temperature", "precipitation", "rain", "snowfall",
+    "snow_depth", "wind_speed_10m",
+]
+WEATHER_FEATURES = WEATHER_RAW + [
+    "precipitation_prev_hour", "precipitation_morning", "precipitation_day",
+    "temperature_day_min", "temperature_day_max",
+]
+
+
+def load_weather(path) -> pd.DataFrame:
+    """Read fetch_weather.py output and add derived features on the continuous series."""
+    weather = pd.read_csv(path, sep=";", dtype={"date": str}).sort_values(["date", "hour"])
+    weather = weather[["date", "hour"] + WEATHER_RAW].reset_index(drop=True)
+    daily = weather.groupby("date")
+    weather["precipitation_prev_hour"] = weather.precipitation.shift(1, fill_value=0)
+    morning = weather.precipitation.where(weather.hour.between(6, 10), 0)
+    weather["precipitation_morning"] = morning.groupby(weather.date).transform("sum")
+    weather["precipitation_day"] = daily.precipitation.transform("sum")
+    weather["temperature_day_min"] = daily.temperature_2m.transform("min")
+    weather["temperature_day_max"] = daily.temperature_2m.transform("max")
+    return weather
+
+
+def climatology(weather: pd.DataFrame, before: str, window: int = 7) -> pd.DataFrame:
+    """Mean weather per (day_of_year, hour) over dates before `before`, smoothed ±window days."""
+    history = weather.loc[weather.date < before].copy()
+    history["day_of_year"] = pd.to_datetime(history.date).dt.dayofyear
+    means = history.groupby(["day_of_year", "hour"])[WEATHER_FEATURES].mean()
+    parts = []
+    for hour in range(24):
+        table = means.xs(hour, level="hour").reindex(range(1, 367)).interpolate(limit_direction="both")
+        wrapped = pd.concat([table.iloc[-window:], table, table.iloc[:window]])
+        smooth = wrapped.rolling(2 * window + 1, center=True).mean().iloc[window:-window]
+        parts.append(smooth.assign(hour=hour).rename_axis("day_of_year").reset_index())
+    return pd.concat(parts, ignore_index=True)
+
+
+def add_weather(frame: pd.DataFrame, weather: pd.DataFrame | None,
+                climate: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Join weather by (date, hour); fill dates outside `weather` from `climate`."""
+    if weather is None:
+        result = frame.assign(**{column: np.nan for column in WEATHER_FEATURES})
+    else:
+        result = frame.merge(weather[["date", "hour"] + WEATHER_FEATURES],
+                             on=["date", "hour"], how="left")
+    missing = result[WEATHER_FEATURES[0]].isna()
+    if climate is not None and missing.any():
+        keys = pd.DataFrame({"day_of_year": pd.to_datetime(result.date[missing]).dt.dayofyear,
+                             "hour": result.hour[missing]})
+        filled = keys.merge(climate, on=["day_of_year", "hour"], how="left")
+        result.loc[missing, WEATHER_FEATURES] = filled[WEATHER_FEATURES].to_numpy()
+    assert not result[WEATHER_FEATURES].isna().any().any(), "weather is missing for some hours"
     return result
 
 
