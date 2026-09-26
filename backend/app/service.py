@@ -114,15 +114,7 @@ class BoardingsService:
         }
 
     def get_boardings(self, start: datetime, end: datetime, route: int | None, group_by: str):
-        if start.tzinfo is not None or end.tzinfo is not None:
-            raise HTTPException(422, "Use local dataset time without a timezone offset")
-        if start >= end or start.minute or start.second or start.microsecond or end.minute or end.second or end.microsecond:
-            raise HTTPException(422, "The interval must be positive and aligned to whole hours")
-        if start.date() < self.historical_start:
-            raise HTTPException(422, f"History starts on {self.historical_start}")
-        if route is not None and route not in self.predictor.routes:
-            raise HTTPException(422, f"Unsupported route: {route}")
-        routes = [route] if route is not None else self.predictor.routes
+        routes = self._validate_interval(start, end, route)
         actual_end = datetime.combine(self.forecast_start, datetime.min.time())
         points = []
         with self.engine.begin() as connection:
@@ -149,20 +141,94 @@ class BoardingsService:
                 points.extend(forecast_points)
         return {"points": sorted(points, key=lambda point: (point["route"], point["start"]))}
 
-    def _aggregate(self, connection, table, start: datetime, end: datetime,
-                   routes: list[int], group_by: str):
+    def _validate_interval(self, start: datetime, end: datetime, route: int | None):
+        if start.tzinfo is not None or end.tzinfo is not None:
+            raise HTTPException(422, "Use local dataset time without a timezone offset")
+        if start >= end or start.minute or start.second or start.microsecond or end.minute or end.second or end.microsecond:
+            raise HTTPException(422, "The interval must be positive and aligned to whole hours")
+        if start.date() < self.historical_start:
+            raise HTTPException(422, f"History starts on {self.historical_start}")
+        if route is not None and route not in self.predictor.routes:
+            raise HTTPException(422, f"Unsupported route: {route}")
+        return [route] if route is not None else self.predictor.routes
+
+    def stream_boardings(self, start: datetime, end: datetime, route: int | None, group_by: str):
+        routes = self._validate_interval(start, end, route)
+        actual_end = datetime.combine(self.forecast_start, datetime.min.time())
+
+        # Complete cache misses and reject incomplete data before response headers are sent.
+        with self.engine.begin() as connection:
+            if start < actual_end:
+                self._check_coverage(connection, actual_hourly, start, min(end, actual_end), routes)
+            if end > actual_end:
+                forecast_from = max(start, actual_end)
+                uncached_from = max(forecast_from, datetime.combine(
+                    self.precomputed_end + timedelta(days=1), datetime.min.time(),
+                ))
+                self._fill_forecasts(connection, uncached_from, end, routes)
+                try:
+                    self._check_coverage(connection, forecast_hourly, forecast_from, end, routes)
+                except HTTPException as error:
+                    if error.status_code != 503:
+                        raise
+                    self._fill_forecasts(connection, forecast_from, end, routes)
+                    self._check_coverage(connection, forecast_hourly, forecast_from, end, routes)
+
+        def rows():
+            with self.engine.connect() as connection:
+                for selected_route in sorted(routes):
+                    if start < actual_end:
+                        for point, _ in self._iter_aggregate(
+                            connection, actual_hourly, start, min(end, actual_end),
+                            [selected_route], group_by, stream=True,
+                        ):
+                            yield point
+                    if end > actual_end:
+                        for point, _ in self._iter_aggregate(
+                            connection, forecast_hourly, max(start, actual_end), end,
+                            [selected_route], group_by, stream=True,
+                        ):
+                            yield point
+
+        return rows()
+
+    def _check_coverage(self, connection, table, start: datetime, end: datetime, routes: list[int]):
+        found = connection.scalar(select(func.count()).select_from(table).where(
+            *self._interval_filters(table, start, end, routes),
+        ))
+        expected = int((end - start).total_seconds() // 3600) * len(routes)
+        if found != expected:
+            source = "actual" if table is actual_hourly else "forecast"
+            raise HTTPException(503, f"Hourly {source} data is incomplete")
+
+    def _interval_filters(self, table, start: datetime, end: datetime, routes: list[int]):
         last = end - timedelta(hours=1)
         filters = [
             table.c.route.in_(routes),
             or_(table.c.date > start.date(), and_(table.c.date == start.date(), table.c.hour >= start.hour)),
             or_(table.c.date < last.date(), and_(table.c.date == last.date(), table.c.hour <= last.hour)),
         ]
-        source = "actual" if table is actual_hourly else "forecast"
-        if source == "forecast":
+        if table is forecast_hourly:
             filters.append(table.c.forecast_version == self.predictor.version)
+        return filters
 
+    def _aggregate(self, connection, table, start: datetime, end: datetime,
+                   routes: list[int], group_by: str):
+        points = []
+        found = 0
+        for point, count in self._iter_aggregate(connection, table, start, end, routes, group_by):
+            points.append(point)
+            found += count
         expected = int((end - start).total_seconds() // 3600) * len(routes)
+        if found != expected:
+            source = "actual" if table is actual_hourly else "forecast"
+            raise HTTPException(503, f"Hourly {source} data is incomplete")
+        return points
 
+    def _iter_aggregate(self, connection, table, start: datetime, end: datetime,
+                        routes: list[int], group_by: str, stream: bool = False):
+        filters = self._interval_filters(table, start, end, routes)
+        source = "actual" if table is actual_hourly else "forecast"
         if group_by == "hour":
             buckets = [table.c.date, table.c.hour]
         elif group_by == "day":
@@ -175,10 +241,9 @@ class BoardingsService:
             *filters,
         ).group_by(table.c.route, *buckets).order_by(table.c.route, *buckets)
 
-        points = []
-        found = 0
+        if stream:
+            statement = statement.execution_options(yield_per=1000)
         for row in connection.execute(statement):
-            found += row[-2]
             bucket = row[1]
             if group_by == "hour":
                 bucket_start = datetime.combine(bucket, datetime.min.time()).replace(hour=row[2])
@@ -194,14 +259,10 @@ class BoardingsService:
                     year = bucket_date.year + (bucket_date.month == 12)
                     month = bucket_date.month % 12 + 1
                     bucket_end = datetime(year, month, 1)
-            points.append({
+            yield {
                 "route": row[0], "start": max(bucket_start, start).isoformat(),
                 "end": min(bucket_end, end).isoformat(), "boardings": int(row[-1]),
                 "source": source,
                 "forecast_version": self.predictor.version if source == "forecast" else None,
                 "historical_end": self.settings.historical_end.isoformat() if source == "forecast" else None,
-            })
-        # Missing hours must not silently reduce an aggregate total.
-        if found != expected:
-            raise HTTPException(503, f"Hourly {source} data is incomplete")
-        return points
+            }, row[-2]

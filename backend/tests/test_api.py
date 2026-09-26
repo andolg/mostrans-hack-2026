@@ -1,5 +1,6 @@
 import csv
 import json
+from io import StringIO
 from dataclasses import replace
 from datetime import date
 
@@ -104,6 +105,82 @@ def test_interval_response_keeps_actuals_and_forecasts_distinct(tmp_path):
              "boardings": 24, "source": "forecast", "forecast_version": "test-model",
              "historical_end": "2025-10-31"},
         ]
+
+
+def test_csv_export_matches_interval_response(tmp_path):
+    app = create_app(make_settings(tmp_path), predictor_factory=FakePredictor)
+    params = {
+        "from": "2025-10-31T23:00", "to": "2025-11-02T00:00", "group_by": "day",
+    }
+    with TestClient(app) as client:
+        expected = client.get("/api/boardings", params=params).json()["points"]
+        response = client.get("/api/boardings/export", params=params)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"].startswith("attachment;")
+    rows = list(csv.DictReader(StringIO(response.text), delimiter=";"))
+    assert rows == [{
+        "route": str(point["route"]),
+        "start": point["start"],
+        "end": point["end"],
+        "boardings": str(point["boardings"]),
+        "source": point["source"],
+        "forecast_version": point["forecast_version"] or "",
+        "historical_end": point["historical_end"] or "",
+    } for point in expected]
+
+
+def test_csv_export_fills_cache_miss_once(tmp_path):
+    predictor = FakePredictor()
+    app = create_app(make_settings(tmp_path), predictor_factory=lambda: predictor)
+    params = {"from": "2025-11-02T00:00", "to": "2025-11-02T02:00", "route": 1}
+    with TestClient(app) as client:
+        first = client.get("/api/boardings/export", params=params)
+        second = client.get("/api/boardings/export", params=params)
+
+    assert first.status_code == second.status_code == 200
+    assert first.content == second.content
+    assert len(predictor.calls) == 2
+    assert len(predictor.calls[-1]) == 2
+
+
+def test_csv_export_repairs_missing_precomputed_row(tmp_path):
+    settings = make_settings(tmp_path)
+    predictor = FakePredictor()
+    app = create_app(settings, predictor_factory=lambda: predictor)
+    with TestClient(app) as client:
+        with create_engine(settings.database_url).begin() as connection:
+            connection.execute(delete(forecast_hourly).where(
+                forecast_hourly.c.route == 1, forecast_hourly.c.hour == 0,
+            ))
+        response = client.get("/api/boardings/export", params={
+            "from": "2025-11-01T00:00", "to": "2025-11-01T01:00", "route": 1,
+        })
+
+    assert response.status_code == 200
+    assert list(csv.DictReader(StringIO(response.text), delimiter=";"))[0]["boardings"] == "1"
+    assert len(predictor.calls) == 2
+
+
+def test_csv_export_rejects_missing_history_before_streaming(tmp_path):
+    settings = make_settings(tmp_path)
+    app = create_app(settings, predictor_factory=FakePredictor)
+    with TestClient(app) as client:
+        with create_engine(settings.database_url).begin() as connection:
+            connection.execute(delete(actual_hourly).where(
+                actual_hourly.c.route == 1, actual_hourly.c.hour == 0,
+            ))
+        response = client.get("/api/boardings/export", params={
+            "from": "2025-10-31T00:00", "to": "2025-10-31T01:00", "route": 1,
+        })
+        invalid = client.get("/api/boardings/export", params={
+            "from": "2025-11-01T02:00", "to": "2025-11-01T01:00",
+        })
+
+    assert response.status_code == 503
+    assert not response.headers["content-type"].startswith("text/csv")
+    assert invalid.status_code == 422
 
 
 def test_cache_miss_predicts_in_one_batch_and_is_saved(tmp_path):

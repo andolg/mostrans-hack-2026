@@ -45,6 +45,7 @@ API доступен на <http://localhost:8000/docs>. Основные зап�
 
 ```http
 GET /api/boardings?from=2025-11-01T00:00&to=2025-12-01T00:00&route=17&group_by=day
+GET /api/boardings/export?from=2025-11-01T00:00&to=2025-12-01T00:00&route=17&group_by=day
 GET /api/metadata
 GET /health
 ```
@@ -52,6 +53,8 @@ GET /health
 `from` включительно, `to` исключительно; `route` необязателен,
 `group_by=hour|day|month`. Даты и часы задаются по календарю датасета без
 смещения часового пояса. Нулевые прогнозы тоже сохраняются в кэше.
+`/api/boardings/export` скачивает CSV с теми же параметрами и отдельной колонкой
+источника (`actual` или `forecast`).
 
 Для локальных проверок нужен Python 3.12:
 `python -m pip install -r backend/requirements.txt pytest httpx`, затем

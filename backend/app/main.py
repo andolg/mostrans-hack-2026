@@ -3,8 +3,10 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import FastAPI, Query
+from fastapi.responses import StreamingResponse
 
 from .config import Settings
+from .export import csv_chunks
 from .service import BoardingsService
 
 
@@ -39,5 +41,19 @@ def create_app(settings: Settings, predictor_factory=None) -> FastAPI:
         group_by: Literal["hour", "day", "month"] = Query(default="hour"),
     ):
         return app.state.service.get_boardings(from_, to, route, group_by)
+
+    @app.get("/api/boardings/export", response_class=StreamingResponse,
+             responses={200: {"content": {"text/csv": {}}}})
+    def export_boardings(
+        from_: datetime = Query(alias="from"),
+        to: datetime = Query(),
+        route: int | None = Query(default=None),
+        group_by: Literal["hour", "day", "month"] = Query(default="hour"),
+    ):
+        points = app.state.service.stream_boardings(from_, to, route, group_by)
+        return StreamingResponse(
+            csv_chunks(points), media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="boardings.csv"'},
+        )
 
     return app
