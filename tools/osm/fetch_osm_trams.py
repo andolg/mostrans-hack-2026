@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -39,24 +40,41 @@ def main() -> int:
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     args = parser.parse_args()
 
-    query = build_query(args.bbox, args.route_refs + args.route_ref)
+    started = time.monotonic()
+
+    def progress(message: str) -> None:
+        print(f"[{time.monotonic() - started:.1f}s] {message}", flush=True)
+
+    refs = args.route_refs + args.route_ref
+    query = build_query(args.bbox, refs)
     request = urllib.request.Request(
         args.endpoint,
         data=urllib.parse.urlencode({"data": query}).encode("utf-8"),
         headers={"User-Agent": "mostrans-hack-2026/0.1 (offline data preparation)"},
         method="POST",
     )
+    progress(f"Requesting {', '.join(refs) if refs else 'all tram routes'} from {args.endpoint}; waiting for Overpass...")
     try:
         with urllib.request.urlopen(request, timeout=240) as response:
-            payload = json.load(response)
+            progress("Response received; downloading JSON...")
+            data = bytearray()
+            next_report = 256 * 1024
+            while chunk := response.read(64 * 1024):
+                data.extend(chunk)
+                if len(data) >= next_report:
+                    progress(f"Downloaded {len(data) // 1024} KiB")
+                    next_report += 256 * 1024
+            progress(f"Parsing {len(data) // 1024} KiB of JSON...")
+            payload = json.loads(data)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
         print(f"OSM download failed: {error}", file=sys.stderr)
         return 1
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    progress(f"Writing {args.output}...")
     args.output.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     relations = sum(1 for item in payload.get("elements", []) if item.get("type") == "relation")
-    print(f"Saved {len(payload.get('elements', []))} OSM elements ({relations} relations) to {args.output}")
+    progress(f"Saved {len(payload.get('elements', []))} OSM elements ({relations} relations) to {args.output}")
     return 0
 
 
