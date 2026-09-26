@@ -34,7 +34,7 @@ ML-пайплайна. Артефакты модели уже лежат в `bac
 Параметры запуска находятся в `backend/settings.json`, календарные признаки —
 в `backend/holidays.json`, подключение к БД задаётся `DATABASE_URL`.
 
-```powershell
+```bash
 docker compose up --build -d postgres backend
 ```
 
@@ -74,7 +74,7 @@ React-приложение показывает число посадок по �
 
 Через Docker:
 
-```powershell
+```bash
 docker compose up --build
 ```
 
@@ -82,7 +82,7 @@ docker compose up --build
 
 Для разработки:
 
-```powershell
+```bash
 cd frontend
 npm ci
 npm run dev
@@ -92,7 +92,7 @@ npm run dev
 
 Проверки:
 
-```powershell
+```bash
 npm run typecheck
 npm run lint
 npm run build

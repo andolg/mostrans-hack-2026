@@ -8,14 +8,14 @@
 
 Маршруты из задания: `1, 5, 7, 11, 12, 17, 25, 26, 28, 50`. Загрузить и нормализовать их одной командой на каждом этапе (запрос к Overpass может занять более трёх минут):
 
-```powershell
-python tools/osm/fetch_osm_trams.py `
-  --route-refs 1 5 7 11 12 17 25 26 28 50 `
-  --endpoint https://overpass.private.coffee/api/interpreter `
+```bash
+python tools/osm/fetch_osm_trams.py \
+  --route-refs 1 5 7 11 12 17 25 26 28 50 \
+  --endpoint https://overpass.private.coffee/api/interpreter \
   --output tmp/moscow_trams.json
 
-python tools/osm/normalize_osm.py `
-  --input tmp/moscow_trams.json `
+python tools/osm/normalize_osm.py \
+  --input tmp/moscow_trams.json \
   --output frontend/public/data/osm
 ```
 
