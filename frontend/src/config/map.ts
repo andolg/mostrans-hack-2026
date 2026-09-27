@@ -4,7 +4,7 @@ export const mapConfig = {
   initialViewState: {
     longitude: 37.6176,
     latitude: 55.7558,
-    zoom: 10.4,
+    zoom: 10.2,
   },
   minZoom: 8,
   maxZoom: 18,
@@ -23,6 +23,6 @@ export const baseMapStyle: StyleSpecification = {
     },
   },
   layers: [
-    { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': -0.75, 'raster-brightness-max': 0.55, 'raster-contrast': 0.18 } },
+    { id: 'osm', type: 'raster', source: 'osm', paint: { 'raster-saturation': -0.9, 'raster-brightness-max': 0.55, 'raster-contrast': 0.05 } },
   ],
 };

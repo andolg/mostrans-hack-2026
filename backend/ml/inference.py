@@ -11,11 +11,11 @@ from .features import calendar
 class SavedPredictor:
     """Run the saved ensemble without retraining."""
 
-    def __init__(self, models_dir: Path, is_holiday):
+    def __init__(self, models_dir: Path, calendar_data):
         metadata = json.loads((models_dir / "metadata.json").read_text(encoding="utf-8"))
         self.routes = metadata["routes"]
         self.weights = metadata["ensemble"]
-        self.is_holiday = is_holiday
+        self.calendar_data = calendar_data
         self.deep = joblib.load(models_dir / "lgb_l1_deep.joblib")
         self.poisson = joblib.load(models_dir / "lgb_poisson.joblib")
         seasonal = pd.read_csv(models_dir / "median_12w.csv")
@@ -25,7 +25,7 @@ class SavedPredictor:
         }
 
     def predict_frame(self, future: pd.DataFrame) -> pd.DataFrame:
-        features = calendar(future, self.is_holiday)
+        features = calendar(future, self.calendar_data)
         deep = np.maximum(0, self.deep.booster_.predict(features, num_threads=1))
         poisson = np.maximum(0, self.poisson.booster_.predict(features, num_threads=1))
         weekday = pd.to_datetime(future.date).dt.dayofweek
