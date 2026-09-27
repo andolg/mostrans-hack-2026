@@ -4,4 +4,4 @@ This is a repository for an ML-oriented hackathon. This is a weekend-long projec
 
 Task description is in `task.md` (in Russian). Do not edit.
 
-Our project description is in `README.md` (in Russian). For now, we keep it is developer-facing. Update as prject evolves. Keep it concise.
+Our project description is in `README.md` (in Russian). For now, we keep it developer-facing. Update as project evolves. Keep it concise.
